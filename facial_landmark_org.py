@@ -43,7 +43,17 @@ class FacialCamera:
         self.video_stream.stop()
 
         return True
-
+"""
+      (0, 16);     // Jaw line
+      (17, 21);    // Left eyebrow
+      (22, 26);    // Right eyebrow
+      (27, 30);    // Nose bridge
+      (30, 35);    // Lower nose
+      (36, 41);    // Left eye
+      (42, 47);    // Right Eye
+      (48, 59);    // Outer lip
+      (60, 67);    // Inner lip
+"""
 
 if __name__ == "__main__":
     FacialCamera().load_cam()
