@@ -150,7 +150,7 @@ class FaceSwap:
 
         return points
 
-    def wrap_face(self, src_img='data/barrack_obama.jpg', dest_img='data/hillary_clinton.jpg'):
+    def wrap_face(self, src_img='data/ted_cruz.jpg', dest_img='data/hillary_clinton.jpg'):
         """
         Wrap Face
         :return: None
