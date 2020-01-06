@@ -168,7 +168,7 @@ class FaceSwap:
         if len(faces) >= 1:
             return faces[0]
 
-    def wrap_face(self, src_img='data/ted_cruz.jpg', dest_img='data/clinton.jpg'):
+    def wrap_face(self, src_img='data/manish2.jpg', dest_img='data/barrack_obama.jpg'):
         """
         Wrap Face
         :return: None
@@ -193,7 +193,7 @@ class FaceSwap:
         # points2 = self.read_points(filename2 + '.txt')
 
         points1 = self.face_landmark.get_landmarks(img1)[0]
-        points2 = self.face_landmark.get_landmarks(img1)[0]
+        points2 = self.face_landmark.get_landmarks(img2)[0]
 
         # Find convex hull
         hull1 = []
@@ -244,7 +244,7 @@ class FaceSwap:
 
         cv2.imshow("Face Swapped", output)
         cv2.waitKey(0)
-
+        cv2.imwrite("data/output.jpg", output)
         cv2.destroyAllWindows()
 
     def load_cam(self, frame_name="Facial Landmark"):
@@ -280,4 +280,4 @@ class FaceSwap:
 
 
 if __name__ == '__main__':
-    FaceSwap().load_cam()
+    FaceSwap().wrap_face()
