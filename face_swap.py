@@ -1,13 +1,20 @@
 import sys
+
+import imutils
 import numpy as np
 import cv2
+from imutils.video import VideoStream
+
 from landmark import FacialLandMark
+from facial_landmark_org import resize_image
 
 
 class FaceSwap:
 
     def __init__(self):
         self.face_landmark = FacialLandMark()
+        self.face_cascade = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
+        self.video_stream = VideoStream(usePiCamera=-1 > 0).start()
 
     def apply_affine_transform(self, src, src_tri, dst_tri, size):
         """
@@ -150,6 +157,17 @@ class FaceSwap:
 
         return points
 
+    def detect_faces(self, img):
+        """
+        Detect faces using face haarcascade
+        :param img:
+        :return: (x,y,w,h) of first face
+        """
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        faces = self.face_cascade.detectMultiScale(img, 1.3, 5)
+        if len(faces) >= 1:
+            return faces[0]
+
     def wrap_face(self, src_img='data/ted_cruz.jpg', dest_img='data/clinton.jpg'):
         """
         Wrap Face
@@ -229,7 +247,37 @@ class FaceSwap:
 
         cv2.destroyAllWindows()
 
+    def load_cam(self, frame_name="Facial Landmark"):
+
+        i = 0
+        # loop over the frames from the video stream
+        while True:
+            # grab the frame from the threaded video stream, resize it to
+            # have a maximum width of 400 pixels, and convert it to
+            # grayscale
+            i += 1
+            frame = self.video_stream.read()
+            frame = imutils.resize(frame, width=800)
+            frame = cv2.flip(frame, 1)
+
+            if self.detect_faces(frame) is not None:
+                (x, y, w, h) = self.detect_faces(frame)
+                frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+            # show the frame
+            cv2.imshow(frame_name, frame)
+            key = cv2.waitKey(1) & 0xFF
+
+            # if the `q` key was pressed, break from the loop
+            if key == ord("q"):
+                break
+
+        # do a bit of cleanup
+        cv2.destroyAllWindows()
+        self.video_stream.stop()
+
+        return True
+
 
 if __name__ == '__main__':
-
-    FaceSwap().wrap_face()
+    FaceSwap().load_cam()
