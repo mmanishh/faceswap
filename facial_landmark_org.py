@@ -25,6 +25,12 @@ def blend_images(src, img, position, alpha=0):
     return src
 
 
+def seamless_clone(obj, img, position):
+    # Create an all white mask
+    mask = 255 * np.ones(obj.shape, obj.dtype)
+    return cv2.seamlessClone(obj, img, mask, position, cv2.NORMAL_CLONE)
+
+
 def resize_image(img, scale_percent=40, scale=False, dim=(100, 20)):
     """
     resize the give image
@@ -68,7 +74,8 @@ class FacialCamera:
         :param nose: coordinate of nose
         :return:
         """
-        w = int(distance.euclidean(start, end))
+        w_offset = 40  # increase width by 40
+        w = int(distance.euclidean(start, end)) + w_offset
         m = mid_point(start, end)
         h = int(distance.euclidean(m, nose))
         return resize_image(img, dim=(w, h))
@@ -103,7 +110,11 @@ class FacialCamera:
                                                  faces[30])  # lower nose starting coordinate
 
                 try:
-                    gray = blend_images(gray, clip_art, faces[17])
+                    # gray = blend_images(gray, clip_art, faces[17])
+                    y_offset = 40
+                    x, y = faces[22]
+                    y += y_offset
+                    gray = seamless_clone(clip_art, gray, (x, y))
                 except ValueError as e:
                     print(e)
 
