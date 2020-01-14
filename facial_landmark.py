@@ -2,7 +2,7 @@
 import cv2
 import imutils
 import numpy as np
-from landmark import FacialLandMark
+from faceswap.landmark import FacialLandMark
 from imutils.video import VideoStream
 from scipy.spatial import distance
 
