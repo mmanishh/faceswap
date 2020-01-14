@@ -18,8 +18,7 @@ def blend_images(src, img, position, alpha=0):
     """
     x_start, y_start = position
     x_end, y_end = x_start + img.shape[1], y_start + img.shape[0]
-    added = cv2.addWeighted(src[y_start:y_end, x_start:x_end], alpha, img,
-                            1 - alpha, 0)
+    added = cv2.addWeighted(src[y_start:y_end, x_start:x_end], alpha, img, 1 - alpha, 0)
     src[y_start:y_end, x_start:x_end] = added
 
     return src
@@ -60,7 +59,6 @@ def mid_point(start, end):
 
 
 class FacialCamera:
-
     def __init__(self):
         self.face_landmark = FacialLandMark()
         self.video_stream = VideoStream(usePiCamera=-1 > 0).start()
@@ -104,10 +102,12 @@ class FacialCamera:
                 cv2.circle(gray, faces[17], 2, (0, 255, 255), 2)
                 cv2.circle(gray, faces[30], 2, (0, 255, 255), 2)
 
-                clip_art = self.cal_size_clipart(clip_art,
-                                                 faces[17],  # left eyebrow starting coordinate
-                                                 faces[26],  # right eyebrow end coordinate
-                                                 faces[30])  # lower nose starting coordinate
+                clip_art = self.cal_size_clipart(
+                    clip_art,
+                    faces[17],  # left eyebrow starting coordinate
+                    faces[26],  # right eyebrow end coordinate
+                    faces[30],
+                )  # lower nose starting coordinate
 
                 try:
                     # gray = blend_images(gray, clip_art, faces[17])
