@@ -6,7 +6,7 @@ import cv2
 from imutils.video import VideoStream
 
 from landmark import FacialLandMark
-from facial_landmark_org import resize_image
+from facial_landmark import resize_image
 
 
 def get_hull8U(hull2):
