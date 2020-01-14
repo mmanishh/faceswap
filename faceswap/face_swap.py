@@ -13,7 +13,7 @@ file_path_haarcascade = os.path.join(
 
 def get_hull8U(hull2):
     hull8U = []
-    for i in range(len(hull2)):
+    for i, _ in enumerate(hull2):
         hull8U.append((hull2[i][0], hull2[i][1]))
 
     return hull8U
@@ -142,11 +142,63 @@ def get_convex_hull(points1, points2):
 
     hullIndex = cv2.convexHull(np.array(points2), returnPoints=False)
 
-    for i in range(len(hullIndex)):
+    for i, _ in enumerate(hullIndex):
         hull1.append(points1[int(hullIndex[i])])
         hull2.append(points2[int(hullIndex[i])])
 
     return hull1, hull2
+
+
+def calculate_delaunay_triangles(rect, points):
+    """
+    calculate delanauy triangle
+    :param rect:
+    :param points:
+    :return:
+    """
+    # create subdiv
+    subdiv = cv2.Subdiv2D(rect)
+
+    # Insert points into subdiv
+    for p in points:
+        subdiv.insert(p)
+
+    triangleList = subdiv.getTriangleList()
+
+    delaunayTri = []
+
+    pt = []
+
+    for t in triangleList:
+        pt.append((t[0], t[1]))
+        pt.append((t[2], t[3]))
+        pt.append((t[4], t[5]))
+
+        pt1 = (t[0], t[1])
+        pt2 = (t[2], t[3])
+        pt3 = (t[4], t[5])
+
+        if (
+            rect_contains(rect, pt1)
+            and rect_contains(rect, pt2)
+            and rect_contains(rect, pt3)
+        ):
+            ind = []
+            # Get face-points (from 68 face detector) by coordinates
+            for j in range(0, 3):
+                for k, _ in enumerate(points):
+                    if (
+                        abs(pt[j][0] - points[k][0]) < 1.0
+                        and abs(pt[j][1] - points[k][1]) < 1.0
+                    ):
+                        ind.append(k)
+                        # Three points form a triangle. Triangle array corresponds to the file tri.txt in FaceMorph
+            if len(ind) == 3:
+                delaunayTri.append((ind[0], ind[1], ind[2]))
+
+        pt = []
+
+    return delaunayTri
 
 
 class FaceSwap:
@@ -154,57 +206,6 @@ class FaceSwap:
         self.face_landmark = FacialLandMark()
         self.face_cascade = cv2.CascadeClassifier(file_path_haarcascade)
         self.video_stream = VideoStream(usePiCamera=-1 > 0).start()
-
-    def calculate_delaunay_triangles(self, rect, points):
-        """
-        calculate delanauy triangle
-        :param rect:
-        :param points:
-        :return:
-        """
-        # create subdiv
-        subdiv = cv2.Subdiv2D(rect)
-
-        # Insert points into subdiv
-        for p in points:
-            subdiv.insert(p)
-
-        triangleList = subdiv.getTriangleList()
-
-        delaunayTri = []
-
-        pt = []
-
-        for t in triangleList:
-            pt.append((t[0], t[1]))
-            pt.append((t[2], t[3]))
-            pt.append((t[4], t[5]))
-
-            pt1 = (t[0], t[1])
-            pt2 = (t[2], t[3])
-            pt3 = (t[4], t[5])
-
-            if (
-                rect_contains(rect, pt1)
-                and rect_contains(rect, pt2)
-                and rect_contains(rect, pt3)
-            ):
-                ind = []
-                # Get face-points (from 68 face detector) by coordinates
-                for j in range(0, 3):
-                    for k in range(len(points)):
-                        if (
-                            abs(pt[j][0] - points[k][0]) < 1.0
-                            and abs(pt[j][1] - points[k][1]) < 1.0
-                        ):
-                            ind.append(k)
-                            # Three points form a triangle. Triangle array corresponds to the file tri.txt in FaceMorph
-                if len(ind) == 3:
-                    delaunayTri.append((ind[0], ind[1], ind[2]))
-
-            pt = []
-
-        return delaunayTri
 
     def detect_faces(self, img):
         """
@@ -230,13 +231,13 @@ class FaceSwap:
         sizeImg2 = img2.shape
         rect = (0, 0, sizeImg2[1], sizeImg2[0])
 
-        dt = self.calculate_delaunay_triangles(rect, hull2)
+        dt = calculate_delaunay_triangles(rect, hull2)
 
         if len(dt) == 0:
             quit()
 
         # Apply affine transformation to Delaunay triangles
-        for i in range(len(dt)):
+        for i, _ in enumerate(dt):
             t1 = []
             t2 = []
 
