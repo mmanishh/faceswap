@@ -13,10 +13,140 @@ file_path_haarcascade = os.path.join(
 
 def get_hull8U(hull2):
     hull8U = []
-    for i in range(0, len(hull2)):
+    for i in range(len(hull2)):
         hull8U.append((hull2[i][0], hull2[i][1]))
 
     return hull8U
+
+
+def apply_affine_transform(src, src_tri, dst_tri, size):
+    """
+    Given a pair of triangles, find the affine transform.
+    :param src:
+    :param src_tri:
+    :param dst_tri:
+    :param size:
+    :return:
+    """
+    warpMat = cv2.getAffineTransform(np.float32(src_tri), np.float32(dst_tri))
+
+    # Apply the Affine Transform just found to the src image
+    dst = cv2.warpAffine(
+        src,
+        warpMat,
+        (size[0], size[1]),
+        None,
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_REFLECT_101,
+    )
+
+    return dst
+
+
+def rect_contains(rect, point):
+    """
+    Check if a point is inside a rectangle
+    :param rect:
+    :param point:
+    :return:
+    """
+    if point[0] < rect[0]:
+        return False
+    elif point[1] < rect[1]:
+        return False
+    elif point[0] > rect[0] + rect[2]:
+        return False
+    elif point[1] > rect[1] + rect[3]:
+        return False
+    return True
+
+
+def warp_triangle(img1, img2, t1, t2):
+    """
+    Warps and alpha blends triangular regions from img1 and img2 to img
+    :param img1:
+    :param img2:
+    :param t1:
+    :param t2:
+    :return:
+    """
+
+    # Find bounding rectangle for each triangle
+    r1 = cv2.boundingRect(np.float32([t1]))
+    r2 = cv2.boundingRect(np.float32([t2]))
+
+    # Offset points by left top corner of the respective rectangles
+    t1Rect = []
+    t2Rect = []
+    t2RectInt = []
+
+    for i in range(0, 3):
+        t1Rect.append(((t1[i][0] - r1[0]), (t1[i][1] - r1[1])))
+        t2Rect.append(((t2[i][0] - r2[0]), (t2[i][1] - r2[1])))
+        t2RectInt.append(((t2[i][0] - r2[0]), (t2[i][1] - r2[1])))
+
+    # Get mask by filling triangle
+    mask = np.zeros((r2[3], r2[2], 3), dtype=np.float32)
+    cv2.fillConvexPoly(mask, np.int32(t2RectInt), (1.0, 1.0, 1.0), 16, 0)
+
+    # Apply warpImage to small rectangular patches
+    img1Rect = img1[r1[1] : r1[1] + r1[3], r1[0] : r1[0] + r1[2]]
+    # img2Rect = np.zeros((r2[3], r2[2]), dtype = img1Rect.dtype)
+
+    size = (r2[2], r2[3])
+
+    img2Rect = apply_affine_transform(img1Rect, t1Rect, t2Rect, size)
+
+    img2Rect = img2Rect * mask
+
+    # Copy triangular region of the rectangular patch to the output image
+    img2[r2[1] : r2[1] + r2[3], r2[0] : r2[0] + r2[2]] = img2[
+        r2[1] : r2[1] + r2[3], r2[0] : r2[0] + r2[2]
+    ] * ((1.0, 1.0, 1.0) - mask)
+
+    img2[r2[1] : r2[1] + r2[3], r2[0] : r2[0] + r2[2]] = (
+        img2[r2[1] : r2[1] + r2[3], r2[0] : r2[0] + r2[2]] + img2Rect
+    )
+
+    return True
+
+
+def read_points(path):
+    """
+    read (x,y) points from file
+    :param path: file path
+    :return: list of points
+    """
+    # Create an array of points.
+    points = []
+
+    # Read points
+    with open(path) as file:
+        for line in file:
+            x, y = line.split()
+            points.append((int(x), int(y)))
+
+    return points
+
+
+def get_convex_hull(points1, points2):
+    """
+    Find convex hull
+    :param points1: facial key point
+    :param points2: facial key point
+    :return: hull1,hull2
+    """
+
+    hull1 = []
+    hull2 = []
+
+    hullIndex = cv2.convexHull(np.array(points2), returnPoints=False)
+
+    for i in range(len(hullIndex)):
+        hull1.append(points1[int(hullIndex[i])])
+        hull2.append(points2[int(hullIndex[i])])
+
+    return hull1, hull2
 
 
 class FaceSwap:
@@ -24,46 +154,6 @@ class FaceSwap:
         self.face_landmark = FacialLandMark()
         self.face_cascade = cv2.CascadeClassifier(file_path_haarcascade)
         self.video_stream = VideoStream(usePiCamera=-1 > 0).start()
-
-    def apply_affine_transform(self, src, src_tri, dst_tri, size):
-        """
-        Given a pair of triangles, find the affine transform.
-        :param src:
-        :param src_tri:
-        :param dst_tri:
-        :param size:
-        :return:
-        """
-        warpMat = cv2.getAffineTransform(np.float32(src_tri), np.float32(dst_tri))
-
-        # Apply the Affine Transform just found to the src image
-        dst = cv2.warpAffine(
-            src,
-            warpMat,
-            (size[0], size[1]),
-            None,
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_REFLECT_101,
-        )
-
-        return dst
-
-    def rect_contains(self, rect, point):
-        """
-        Check if a point is inside a rectangle
-        :param rect:
-        :param point:
-        :return:
-        """
-        if point[0] < rect[0]:
-            return False
-        elif point[1] < rect[1]:
-            return False
-        elif point[0] > rect[0] + rect[2]:
-            return False
-        elif point[1] > rect[1] + rect[3]:
-            return False
-        return True
 
     def calculate_delaunay_triangles(self, rect, points):
         """
@@ -95,14 +185,14 @@ class FaceSwap:
             pt3 = (t[4], t[5])
 
             if (
-                self.rect_contains(rect, pt1)
-                and self.rect_contains(rect, pt2)
-                and self.rect_contains(rect, pt3)
+                rect_contains(rect, pt1)
+                and rect_contains(rect, pt2)
+                and rect_contains(rect, pt3)
             ):
                 ind = []
                 # Get face-points (from 68 face detector) by coordinates
                 for j in range(0, 3):
-                    for k in range(0, len(points)):
+                    for k in range(len(points)):
                         if (
                             abs(pt[j][0] - points[k][0]) < 1.0
                             and abs(pt[j][1] - points[k][1]) < 1.0
@@ -116,72 +206,6 @@ class FaceSwap:
 
         return delaunayTri
 
-    def warp_triangle(self, img1, img2, t1, t2):
-        """
-        Warps and alpha blends triangular regions from img1 and img2 to img
-        :param img1:
-        :param img2:
-        :param t1:
-        :param t2:
-        :return:
-        """
-
-        # Find bounding rectangle for each triangle
-        r1 = cv2.boundingRect(np.float32([t1]))
-        r2 = cv2.boundingRect(np.float32([t2]))
-
-        # Offset points by left top corner of the respective rectangles
-        t1Rect = []
-        t2Rect = []
-        t2RectInt = []
-
-        for i in range(0, 3):
-            t1Rect.append(((t1[i][0] - r1[0]), (t1[i][1] - r1[1])))
-            t2Rect.append(((t2[i][0] - r2[0]), (t2[i][1] - r2[1])))
-            t2RectInt.append(((t2[i][0] - r2[0]), (t2[i][1] - r2[1])))
-
-        # Get mask by filling triangle
-        mask = np.zeros((r2[3], r2[2], 3), dtype=np.float32)
-        cv2.fillConvexPoly(mask, np.int32(t2RectInt), (1.0, 1.0, 1.0), 16, 0)
-
-        # Apply warpImage to small rectangular patches
-        img1Rect = img1[r1[1] : r1[1] + r1[3], r1[0] : r1[0] + r1[2]]
-        # img2Rect = np.zeros((r2[3], r2[2]), dtype = img1Rect.dtype)
-
-        size = (r2[2], r2[3])
-
-        img2Rect = self.apply_affine_transform(img1Rect, t1Rect, t2Rect, size)
-
-        img2Rect = img2Rect * mask
-
-        # Copy triangular region of the rectangular patch to the output image
-        img2[r2[1] : r2[1] + r2[3], r2[0] : r2[0] + r2[2]] = img2[
-            r2[1] : r2[1] + r2[3], r2[0] : r2[0] + r2[2]
-        ] * ((1.0, 1.0, 1.0) - mask)
-
-        img2[r2[1] : r2[1] + r2[3], r2[0] : r2[0] + r2[2]] = (
-            img2[r2[1] : r2[1] + r2[3], r2[0] : r2[0] + r2[2]] + img2Rect
-        )
-
-        return True
-
-    def read_points(self, path):
-        """
-        read (x,y) points from file
-        :param path: file path
-        :return: list of points
-        """
-        # Create an array of points.
-        points = []
-
-        # Read points
-        with open(path) as file:
-            for line in file:
-                x, y = line.split()
-                points.append((int(x), int(y)))
-
-        return points
-
     def detect_faces(self, img):
         """
         Detect faces using face haarcascade
@@ -192,25 +216,6 @@ class FaceSwap:
         faces = self.face_cascade.detectMultiScale(img, 1.3, 5)
         if len(faces) >= 1:
             return faces[0]
-
-    def get_convex_hull(self, points1, points2):
-        """
-        Find convex hull
-        :param points1: facial key point
-        :param points2: facial key point
-        :return: hull1,hull2
-        """
-
-        hull1 = []
-        hull2 = []
-
-        hullIndex = cv2.convexHull(np.array(points2), returnPoints=False)
-
-        for i in range(0, len(hullIndex)):
-            hull1.append(points1[int(hullIndex[i])])
-            hull2.append(points2[int(hullIndex[i])])
-
-        return hull1, hull2
 
     def find_delaunay(self, hull1, hull2, img1, img2, img1Warped):
         """
@@ -231,7 +236,7 @@ class FaceSwap:
             quit()
 
         # Apply affine transformation to Delaunay triangles
-        for i in range(0, len(dt)):
+        for i in range(len(dt)):
             t1 = []
             t2 = []
 
@@ -240,7 +245,7 @@ class FaceSwap:
                 t1.append(hull1[dt[i][j]])
                 t2.append(hull2[dt[i][j]])
 
-            self.warp_triangle(img1, img1Warped, t1, t2)
+            warp_triangle(img1, img1Warped, t1, t2)
 
     def wrap_face(self, src_img, dest_img):
         """
@@ -251,7 +256,7 @@ class FaceSwap:
         (major_ver, minor_ver, subminor_ver) = cv2.__version__.split(".")
 
         if int(major_ver) < 3:
-            print >>sys.stqderr, "ERROR: Script needs OpenCV 3.0 or higher"
+            print("ERROR: Script needs OpenCV 3.0 or higher")
             sys.exit(1)
 
         # Read images
@@ -274,7 +279,7 @@ class FaceSwap:
         points1 = self.face_landmark.get_landmarks(img1)[0]
         points2 = self.face_landmark.get_landmarks(img2)[0]
 
-        hull1, hull2 = self.get_convex_hull(points1, points2)
+        hull1, hull2 = get_convex_hull(points1, points2)
 
         # cal delaunay
         self.find_delaunay(hull1, hull2, img1, img2, img1Warped)
