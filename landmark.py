@@ -3,7 +3,6 @@ from imutils import face_utils
 
 
 class FacialLandMark:
-
     def __init__(self, predictor_name="data/shape_predictor_68_face_landmarks.dat"):
         self.detector = dlib.get_frontal_face_detector()
         self.predictor = dlib.shape_predictor(predictor_name)
